@@ -125,13 +125,14 @@ spec:
             # - name: SIMULATION_DISTANCE
             #   value: "6"
             # Seed usada para gerar um NOVO mundo; não recria um mundo existente.
-            # Ilha cercada por montanhas de cerejeiras; vila próxima (Java 26.3).
-            # Fonte: https://gamingroute.com/best-minecraft-seeds/
+            # Seed com grande variedade de biomas e estruturas próximas (Java 26.3).
+            # Fonte: https://mcseedmaps.com/seed/8500081009970950196-java-26-3
             - name: SEED
-              value: "2048005618087379093"
-            # Nome da pasta do mundo em /data. Alterar seleciona outro mundo.
-            # - name: LEVEL
-            #   value: "world"
+              value: "8500081009970950196"
+            # Novo mundo: mantém o antigo /data/world e suas dimensões no volume.
+            # Mantenha este nome nos próximos deploys para continuar o mesmo mundo.
+            - name: LEVEL
+              value: "brian-limitado"
 
             # --- Datapacks: instalados só no servidor, sem download pelos jogadores ---
             # Timber, Graves e Fast Leaf Decay selecionados em datapacks.yaml.
@@ -148,9 +149,15 @@ spec:
             # Também é possível instalar arquivos .jar em /data/plugins.
 
             # --- Administração remota ---
-            # Desabilitada; a porta RCON não é publicada pelo Service.
+            # RCON interno para aplicar a borda depois que o servidor iniciar.
+            # Senha gerada pela imagem; a porta RCON não é publicada pelo Service.
             - name: ENABLE_RCON
-              value: "false"
+              value: "true"
+            # Borda do Overworld: 10.000 de largura, X/Z de -5.000 a +5.000.
+            - name: RCON_CMDS_STARTUP
+              value: |-
+                execute in minecraft:overworld run worldborder center 0 0
+                execute in minecraft:overworld run worldborder set 10000
           ports:
             - name: minecraft
               containerPort: 25565

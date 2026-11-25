@@ -80,7 +80,7 @@ Libere entrada TCP 25565 no firewall do provedor e no firewall do Linux, caso ex
 ufw allow 25565/tcp
 ```
 
-Não é necessário habilitar o UFW para o exemplo. O ServiceLB do K3s precisa estar habilitado e a porta 25565 livre. RCON está desabilitado.
+Não é necessário habilitar o UFW para o exemplo. O ServiceLB do K3s precisa estar habilitado e a porta 25565 livre. RCON está habilitado internamente para aplicar a borda ao iniciar; sua porta não é publicada pelo Service, e a imagem gera a senha em tempo de execução.
 
 ## Configuração e atualizações
 
@@ -189,9 +189,27 @@ Para atualizar o jogo, faça backup do mundo, altere `VERSION` e `PAPER_BUILD` p
 
 ### Seed escolhida
 
-`SEED=2048005618087379093`: ilha cercada por montanhas de cerejeiras, com uma vila próxima. A [lista consultada para Java 26.3](https://gamingroute.com/best-minecraft-seeds/) informa uma vila aproximadamente em X=-272, Z=112. A paisagem foi escolhida pela pesquisa; não foi testada localmente no jogo.
+`SEED=8500081009970950196`: escolhida para um survival compacto com variedade de biomas e estruturas. A [fonte consultada para Java 26.3](https://mcseedmaps.com/seed/8500081009970950196-java-26-3) informa 45 biomas a até 1.000 blocos do spawn e estruturas como vila, mansão, cidade ancestral e stronghold nas proximidades. Não é garantia de todos os recursos ou estruturas das três dimensões; a seed foi pesquisada, não validada localmente no jogo.
 
-A seed só é usada ao gerar um mundo novo. Se `/data/world` já existe, aplicar o YAML não muda esse mundo. Para testar sem apagar o anterior, escolha um nome novo em `LEVEL` e aplique novamente; o mundo antigo permanece no volume. Isso inicia outro mundo e exige espaço adicional em disco.
+A seed só é usada ao gerar um mundo novo. O Deployment agora usa `LEVEL=brian-limitado` para gerar outro mundo no mesmo volume, preservando `/data/world` e as dimensões antigas. Jogadores começam no novo mundo, com progresso e construções separados. Os dados globais dos plugins continuam no mesmo volume. Mantenha o nome `brian-limitado` nos próximos deploys; apenas a primeira inicialização gera o novo mundo. Se já houver um mundo com esse nome, ele será reutilizado, e a seed não será substituída.
+
+### Borda do mundo
+
+`RCON_CMDS_STARTUP` aplica automaticamente uma borda de 10.000 × 10.000 blocos no Overworld, centrada em X=0, Z=0, após iniciar. São 5.000 blocos para cada lado; essa configuração não limita separadamente Nether e End. Não há remoção de chunks nem pré-geração do mapa inteiro. A borda é reaplicada em cada reinício; para mudar o tamanho permanentemente, altere o YAML.
+
+Antes da primeira aplicação, faça backup do volume com o servidor parado. Atualize o repositório na VPS e aplique:
+
+```bash
+kubectl apply -f apps/minecraft/
+kubectl -n laboratorio rollout status deployment/minecraft --timeout=900s
+kubectl -n laboratorio logs -f deployment/minecraft
+```
+
+Depois de aparecer `Done` e a execução dos comandos de inicialização, confirme no chat `/seed` e `/worldborder get`. O retorno esperado para a borda é 10000. Não é necessário executar outro `rollout restart` após a mudança no Deployment. No novo mundo, confira também `/datapack list enabled`.
+
+Para voltar ao mundo anterior, restaure `LEVEL=world` e aplique novamente; não apague nenhum PVC ou diretório. O novo mundo permanece no volume. O mesmo conjunto de plugins é compartilhado, então referências salvas por plugins (como homes e warps) podem precisar de revisão ao trocar de mundo.
+
+Referência: [execução automática de comandos RCON pela imagem](https://docker-minecraft-server.readthedocs.io/en/latest/configuration/auto-rcon-commands/).
 
 O volume sobrevive à recriação do Pod ou Deployment. O `local-path` guarda os arquivos no disco de um nó; não é backup nem armazenamento replicado. A solicitação de 10 GiB não é garantia de quota rígida de disco nesse provisionador.
 
