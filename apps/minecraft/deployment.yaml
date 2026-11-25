@@ -1,0 +1,170 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minecraft
+  namespace: laboratorio
+spec:
+  # Um único servidor escreve neste mundo. Não aumente as réplicas.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: minecraft
+  template:
+    metadata:
+      labels:
+        app: minecraft
+    spec:
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: minecraft
+          image: itzg/minecraft-server:latest
+          imagePullPolicy: Always
+          env:
+            # Guia: https://docker-minecraft-server.readthedocs.io/en/latest/configuration/server-properties/
+            # Exemplos com # ficam desativados. Remova # de name E value para usar.
+            # Depois de editar: kubectl apply -f apps/minecraft/
+
+            # --- Tipo de servidor e versão ---
+            # Iniciar com TRUE aceita https://www.minecraft.net/en-us/eula
+            - name: EULA
+              value: "TRUE"
+            # VANILLA = original; PAPER = aceita plugins (jogadores sem mods).
+            # FABRIC/FORGE = mods; depende do mod se exige instalação no cliente.
+            # Ao trocar TYPE, confira a versão suportada e faça backup do mundo.
+            - name: TYPE
+              value: "PAPER"
+            # Versão fixa do Minecraft Java; reiniciar não atualiza o jogo.
+            - name: VERSION
+              value: "26.3"
+            # Build estável fixada para evitar atualizações automáticas do Paper.
+            - name: PAPER_BUILD
+              value: "262"
+
+            # --- Memória: cresce conforme o uso ---
+            # Heap pequeno ao iniciar, com crescimento conforme a demanda.
+            - name: INIT_MEMORY
+              value: "512M"
+            # Percentual da memória disponível detectada pela JVM.
+            - name: MAX_MEMORY
+              value: "75%"
+
+            # --- Acesso e apresentação ---
+            # TRUE exige autenticação de conta válida de Minecraft Java.
+            - name: ONLINE_MODE
+              value: "TRUE"
+            # Mensagem exibida na lista de servidores.
+            - name: MOTD
+              value: "Os Brian"
+            # Ícone PNG incluído no ConfigMap server-icon.yaml, sem URL externa.
+            - name: ICON
+              value: "/config/server-icon/server-icon.png"
+            - name: OVERRIDE_ICON
+              value: "TRUE"
+            # Quantidade máxima de jogadores conectados.
+            - name: MAX_PLAYERS
+              value: "9999"
+            # Permitir apenas jogadores da lista (ative e preencha WHITELIST).
+            # - name: ENABLE_WHITELIST
+            #   value: "TRUE"
+            # - name: WHITELIST
+            #   value: "NickDoJogador1,NickDoJogador2"
+            # Jogadores administradores: use apenas nicks de pessoas confiáveis.
+            - name: OPS
+              value: "Lunardi8386,GLostKiller"
+            # Adiciona os operadores acima sem remover os já cadastrados.
+            - name: EXISTING_OPS_FILE
+              value: "MERGE"
+
+            # --- Regras do jogo: exemplos opcionais ---
+            # survival, creative, adventure ou spectator.
+            # - name: MODE
+            #   value: "survival"
+            # peaceful, easy, normal ou hard.
+            # - name: DIFFICULTY
+            #   value: "normal"
+            # TRUE permite combate entre jogadores; FALSE desativa.
+            # - name: PVP
+            #   value: "TRUE"
+            # Hardcore: morte permanente; configure antes de criar o mundo.
+            # - name: HARDCORE
+            #   value: "FALSE"
+            # Distância protegida ao redor do spawn, em blocos; 0 desativa.
+            # - name: SPAWN_PROTECTION
+            #   value: "16"
+            # Blocos de comando.
+            # - name: ENABLE_COMMAND_BLOCK
+            #   value: "FALSE"
+
+            # --- Mundo e desempenho ---
+            # Distância de visão em chunks; valores maiores aumentam o consumo.
+            - name: VIEW_DISTANCE
+              value: "14"
+            # Distância de simulação em chunks (entidades e mecânicas ativas).
+            # - name: SIMULATION_DISTANCE
+            #   value: "6"
+            # Seed usada para gerar um NOVO mundo; não recria um mundo existente.
+            # Ilha cercada por montanhas de cerejeiras; vila próxima (Java 26.3).
+            # Fonte: https://gamingroute.com/best-minecraft-seeds/
+            - name: SEED
+              value: "2048005618087379093"
+            # Nome da pasta do mundo em /data. Alterar seleciona outro mundo.
+            # - name: LEVEL
+            #   value: "world"
+
+            # --- Datapacks: instalados só no servidor, sem download pelos jogadores ---
+            # Timber, Graves e Fast Leaf Decay selecionados em datapacks.yaml.
+            # A imagem baixa os pacotes do Vanilla Tweaks antes de iniciar o jogo.
+            - name: VANILLATWEAKS_FILE
+              value: "/config/vanillatweaks/vanillatweaks.json"
+
+            # --- Plugins: apenas se TYPE for PAPER ou outro tipo compatível ---
+            # Download de plugins por URL direta de arquivos .jar confiáveis.
+            # Lista separada por vírgulas. Substitua a URL antes de ativar.
+            # - name: PLUGINS
+            #   value: "https://seu-dominio/plugin.jar"
+            # Também é possível instalar arquivos .jar em /data/plugins.
+
+            # --- Administração remota ---
+            # Desabilitada; a porta RCON não é publicada pelo Service.
+            - name: ENABLE_RCON
+              value: "false"
+          ports:
+            - name: minecraft
+              containerPort: 25565
+              protocol: TCP
+          resources:
+            # Requests ajudam no agendamento; não alocam toda a RAM física.
+            # Sem limits: CPU pode usar capacidade livre e o heap tem teto acima.
+            requests:
+              cpu: 500m
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: datapack-config
+              mountPath: /config/vanillatweaks
+              readOnly: true
+            - name: server-icon
+              mountPath: /config/server-icon
+              readOnly: true
+          startupProbe:
+            tcpSocket:
+              port: minecraft
+            periodSeconds: 10
+            failureThreshold: 90
+          readinessProbe:
+            tcpSocket:
+              port: minecraft
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: minecraft-data
+        - name: datapack-config
+          configMap:
+            name: minecraft-datapacks
+        - name: server-icon
+          configMap:
+            name: minecraft-server-icon
