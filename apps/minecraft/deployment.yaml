@@ -17,6 +17,23 @@ spec:
         app: minecraft
     spec:
       terminationGracePeriodSeconds: 120
+      # Copia a configuração gerenciada pelo Git para o volume gravável.
+      initContainers:
+        - name: configure-essentials
+          image: busybox:1.37.0
+          command:
+            - sh
+            - -ec
+            - |
+              mkdir -p /data/plugins/Essentials
+              cp /essentials-config/config.yml /data/plugins/Essentials/config.yml
+              chown 1000:1000 /data/plugins/Essentials /data/plugins/Essentials/config.yml
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: essentials-config
+              mountPath: /essentials-config
+              readOnly: true
       containers:
         - name: minecraft
           image: itzg/minecraft-server:latest
@@ -123,10 +140,11 @@ spec:
               value: "/config/vanillatweaks/vanillatweaks.json"
 
             # --- Plugins: apenas se TYPE for PAPER ou outro tipo compatível ---
-            # Download de plugins por URL direta de arquivos .jar confiáveis.
-            # Lista separada por vírgulas. Substitua a URL antes de ativar.
-            # - name: PLUGINS
-            #   value: "https://seu-dominio/plugin.jar"
+            # EssentialsX: build oficial de desenvolvimento fixada para 26.3.
+            # WorldEdit: versão estável 7.4.6 compatível com Paper 26.3.
+            # Configuração do EssentialsX gerenciada em essentials.yaml.
+            - name: PLUGINS
+              value: "https://ci.ender.zone/job/EssentialsX/1833/artifact/jars/EssentialsX-2.22.1-dev+28-f8724e2.jar,https://cdn.modrinth.com/data/1u6JkXh5/versions/YFnqiUlL/worldedit-bukkit-7.4.6.jar"
             # Também é possível instalar arquivos .jar em /data/plugins.
 
             # --- Administração remota ---
@@ -171,3 +189,6 @@ spec:
         - name: server-icon
           configMap:
             name: minecraft-server-icon
+        - name: essentials-config
+          configMap:
+            name: minecraft-essentials

@@ -10,6 +10,7 @@ apps/minecraft/deployment.yaml
 apps/minecraft/service.yaml
 apps/minecraft/storage.yaml
 apps/minecraft/datapacks.yaml
+apps/minecraft/essentials.yaml
 apps/minecraft/server-icon.yaml
 apps/minecraft/assets/server-icon.png
 ```
@@ -82,6 +83,43 @@ ufw allow 25565/tcp
 Não é necessário habilitar o UFW para o exemplo. O ServiceLB do K3s precisa estar habilitado e a porta 25565 livre. RCON está desabilitado.
 
 ## Configuração e atualizações
+
+### WorldEdit
+
+WorldEdit `7.4.6` estável foi adicionado à variável `PLUGINS` com URL de versão fixa. A publicação oficial no Modrinth declara suporte a Paper 26.3 e não lista dependências obrigatórias. O arquivo é a edição Bukkit/Paper, não o mod Fabric/Forge. Os jogadores não precisam instalar nada.
+
+Os operadores do servidor têm acesso ao WorldEdit por padrão. Não liberamos permissões de edição para jogadores comuns. Para conferir após aplicar e reiniciar, use `/worldedit version` no jogo. `//wand` fornece a ferramenta de seleção: clique esquerdo marca o primeiro canto, e direito marca o segundo. `//set stone` preenche a seleção com pedra; `//undo` desfaz sua última edição. Comece com seleções pequenas, pois edições grandes podem consumir muitos recursos, e mantenha backup das construções.
+
+A configuração padrão do plugin é criada no volume em `/data/plugins/WorldEdit`; não adicionamos outro initContainer. Para atualizar, altere a URL na lista `PLUGINS` para outra versão compatível e aplique o Deployment.
+
+Referências: [arquivo oficial 7.4.6](https://modrinth.com/plugin/worldedit/version/YFnqiUlL), [guia inicial](https://worldedit.enginehub.org/en/latest/quickstart/) e [permissões](https://worldedit.enginehub.org/en/latest/permissions/).
+
+### Pedidos de teleporte (EssentialsX)
+
+O servidor baixa a build oficial fixada `2.22.1-dev+28-f8724e2` (Jenkins 1833). O canal de desenvolvimento inclui suporte a Minecraft 26.3; a versão estável 2.22.0 declara suporte até 26.1.2. Não usamos um link móvel de última build. SHA-256 do JAR verificado: `5b8a1feb7c40a45d81e516bd077a7272d833c76cf829098743211999abd95929`.
+
+Todos os jogadores recebem apenas estas permissões do EssentialsX pela lista `player-commands`; não precisam de OP, mod ou resource pack:
+
+| Comando | Ação |
+| --- | --- |
+| `/tpa NomeDoJogador` | Pede para ir até o jogador |
+| `/tpaccept` | Aceita o pedido recebido |
+| `/tpdeny` | Recusa o pedido recebido |
+| `/tpacancel` | Cancela seu pedido pendente |
+
+Pedidos expiram em 60 segundos. O teleporte tem espera de 3 segundos (mover-se ou sofrer ataque pode cancelá-lo) e intervalo de 10 segundos entre teleportes. Não habilitamos aceite automático. Operadores continuam com as permissões administrativas do plugin.
+
+`essentials.yaml` contém a configuração em um ConfigMap. Um initContainer copia esse arquivo para `/data/plugins/Essentials/config.yml` antes de cada inicialização. Esse arquivo é gerenciado pelo repositório: alterações manuais nele na VPS serão substituídas ao recriar o Pod. O initContainer não remove os outros arquivos de dados do plugin. Para alterar a configuração, edite o ConfigMap, aplique a pasta e reinicie o Deployment. Se futuramente instalar um gerenciador de permissões, como LuckPerms, migre as permissões para ele.
+
+```bash
+kubectl apply -f apps/minecraft/
+kubectl -n laboratorio rollout status deployment/minecraft --timeout=900s
+kubectl -n laboratorio logs -f deployment/minecraft
+```
+
+Após carregar, confira `/plugins` como administrador e teste `/tpa` com um jogador sem OP, incluindo aceitar e recusar. Se alterar apenas o ConfigMap depois da primeira aplicação, execute `kubectl -n laboratorio rollout restart deployment/minecraft` para recopiá-lo. A instalação foi preparada e validada localmente; o funcionamento no jogo deve ser confirmado na VPS.
+
+Referências: [EssentialsX e versões suportadas](https://github.com/EssentialsX/Essentials), [build oficial 1833](https://ci.ender.zone/job/EssentialsX/1833/), [configuração oficial](https://github.com/EssentialsX/Essentials/blob/2.x/Essentials/src/main/resources/config.yml).
 
 ### Ícone na lista de servidores
 
