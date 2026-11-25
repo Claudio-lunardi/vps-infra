@@ -71,8 +71,11 @@ spec:
             # - name: WHITELIST
             #   value: "NickDoJogador1,NickDoJogador2"
             # Jogadores administradores: use apenas nicks de pessoas confiáveis.
+            # Use o nome do perfil Java (pode diferir do gamertag Xbox).
+            - name: USER_API_PROVIDER
+              value: "mojang"
             - name: OPS
-              value: "Lunardi8386,GLostKiller"
+              value: "Hashira_lunardii,GLostKiller"
             # Adiciona os operadores acima sem remover os já cadastrados.
             - name: EXISTING_OPS_FILE
               value: "MERGE"

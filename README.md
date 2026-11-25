@@ -175,6 +175,8 @@ kubectl -n laboratorio get events --sort-by=.metadata.creationTimestamp
 
 Pod `Pending` pode indicar recursos insuficientes ou volume pendente. Se não conectar, confira a mensagem `Done`, versão do cliente, Service e firewalls.
 
+Se a inicialização falhar em `manage-users` com `Could not resolve user`, confira os nomes em `OPS` e `WHITELIST`: devem ser perfis de Minecraft Java, que podem diferir do gamertag Xbox/Microsoft. Um nome inválido pode impedir a inicialização. `USER_API_PROVIDER=mojang` usa a API da Mojang em vez do PlayerDB; isso pode contornar falhas do provedor, mas não corrige nomes inexistentes. Consulte o [guia de resolução de usuários](https://docker-minecraft-server.readthedocs.io/en/latest/configuration/server-properties/#changing-user-api-provider).
+
 ## Referências
 
 - [Paper na imagem de Minecraft](https://docker-minecraft-server.readthedocs.io/en/latest/types-and-platforms/server-types/paper/)
