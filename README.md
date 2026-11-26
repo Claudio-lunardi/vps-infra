@@ -23,6 +23,12 @@ apps/minecraft/assets/server-icon.png
 
 Cada pasta em `apps/` representa uma aplicação. O Kubernetes não acompanha a pasta ou o Git: `kubectl apply` lê os YAMLs e envia os recursos ao cluster. Depois de editar, aplique novamente. Remover um YAML do Git não exclui seu recurso do cluster.
 
+## Deploy automático pelo GitHub
+
+O workflow `.github/workflows/deploy-minecraft.yaml` executa no GitHub e faz o deploy por SSH na VPS, sem runner instalado nela. A preparação manual do usuário, chave SSH, permissões Kubernetes e Secrets está em [docs/github-actions.md](docs/github-actions.md). O job só executa na `main` com a variável `ENABLE_DEPLOY=true`.
+
+Depois da preparação, mudanças em `apps/minecraft/` enviadas à `main` aplicam os manifests e aguardam o rollout. O script `apps/minecraft/deploy.sh` inclui um hash dos YAMLs no Pod para recarregar também mudanças nos ConfigMaps, sem reiniciar ao reaplicar os mesmos arquivos. Atualizações interrompem brevemente o jogo e preservam o PVC existente. Os comandos manuais abaixo continuam disponíveis; a configuração SSH e o primeiro deploy pela pipeline ainda precisam ser validados na VPS.
+
 ## Requisitos
 
 K3s padrão funcionando, porta TCP 25565 disponível e espaço em disco para o mundo. A capacidade depende da RAM e CPU disponíveis, dos jogadores e do mundo. O agendamento solicita 1 GiB de memória e 0,5 CPU; esses valores não são o teto de uso.

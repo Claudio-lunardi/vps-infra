@@ -1,1 +1,6 @@
 .vs/
+.kube/
+.ssh/
+*kubeconfig*
+*.key
+*.pem

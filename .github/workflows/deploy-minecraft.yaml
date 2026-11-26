@@ -1,0 +1,71 @@
+name: Deploy Minecraft
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/minecraft/**'
+      - '.github/workflows/deploy-minecraft.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: minecraft-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main' && vars.ENABLE_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VPS_HOST: ${{ vars.VPS_HOST }}
+      VPS_PORT: ${{ vars.VPS_PORT || '22' }}
+      VPS_USER: ${{ vars.VPS_USER || 'github-deploy' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Preparar conexão SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VPS_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] || { echo 'Configure VPS_HOST com o IPv4 ou domínio da VPS.' >&2; exit 1; }
+          [[ "$VPS_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || { echo 'VPS_USER inválido.' >&2; exit 1; }
+          [[ "$VPS_PORT" =~ ^[0-9]{1,5}$ ]] && (( 10#$VPS_PORT >= 1 && 10#$VPS_PORT <= 65535 )) || { echo 'VPS_PORT inválida.' >&2; exit 1; }
+          test -n "$SSH_PRIVATE_KEY" && test -n "$SSH_KNOWN_HOSTS" || { echo 'Configure os dois Secrets SSH.' >&2; exit 1; }
+          install -d -m 700 "$RUNNER_TEMP/vps-infra-ssh"
+          umask 077
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/vps-infra-ssh/key"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/vps-infra-ssh/known_hosts"
+
+      - name: Enviar manifests e fazer deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/minecraft.tar.gz" apps/minecraft
+          ssh -T -p "$VPS_PORT" \
+            -i "$RUNNER_TEMP/vps-infra-ssh/key" \
+            -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/vps-infra-ssh/known_hosts" \
+            -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 \
+            "$VPS_USER@$VPS_HOST" '
+              set -eu
+              workdir=$(mktemp -d)
+              trap '\''rm -rf -- "$workdir"'\'' EXIT
+              tar -xzf - -C "$workdir"
+              export KUBECONFIG="$HOME/.kube/config"
+              bash "$workdir/apps/minecraft/deploy.sh"
+            ' < "$RUNNER_TEMP/minecraft.tar.gz"
+
+      - name: Remover arquivos temporários da conexão
+        if: always()
+        shell: bash
+        run: rm -f -- "$RUNNER_TEMP/vps-infra-ssh/key" "$RUNNER_TEMP/vps-infra-ssh/known_hosts" "$RUNNER_TEMP/minecraft.tar.gz"

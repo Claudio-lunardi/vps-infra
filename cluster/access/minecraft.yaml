@@ -1,0 +1,54 @@
+# Preparação manual como administrador; a pipeline aplica apenas apps/minecraft/.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: laboratorio
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: github-deployer
+  namespace: laboratorio
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: github-deployer
+  namespace: laboratorio
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "services", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: github-deployer
+  namespace: laboratorio
+subjects:
+  - kind: ServiceAccount
+    name: github-deployer
+    namespace: laboratorio
+roleRef:
+  kind: Role
+  name: github-deployer
+  apiGroup: rbac.authorization.k8s.io
+---
+# Kubernetes preenche o token; não há credencial no Git.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-deployer-token
+  namespace: laboratorio
+  annotations:
+    kubernetes.io/service-account.name: github-deployer
+type: kubernetes.io/service-account-token
