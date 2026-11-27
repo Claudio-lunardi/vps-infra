@@ -6,6 +6,7 @@ Manifests das aplicações do laboratório K3s, publicados pelo Argo CD.
 
 ```text
 cluster/argocd/applicationset.yaml
+cluster/argocd/root.yaml
 apps/minecraft/deployment.yaml
 apps/minecraft/service.yaml
 apps/minecraft/storage.yaml
@@ -25,14 +26,16 @@ O merge na `main` libera o deploy. A pipeline de um futuro projeto pode testar, 
 
 ## Configuração inicial e recuperação
 
-Com Argo CD instalado em `argocd`, aplicar a regra uma vez:
+Com Argo CD instalado em `argocd`, cadastrar a Application principal uma vez:
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/Claudio-lunardi/vps-infra/main/cluster/argocd/applicationset.yaml
+kubectl apply -f https://raw.githubusercontent.com/Claudio-lunardi/vps-infra/main/cluster/argocd/root.yaml
 kubectl -n argocd get applicationset,applications
 ```
 
-Novas pastas em `apps/` são descobertas automaticamente. Alterações na própria regra precisam ser reaplicadas: ela não gerencia seu próprio arquivo. Após perder o cluster, reinstalar K3s e Argo e reaplicar a regra recupera os cadastros; credenciais privadas e dados persistentes precisam de recuperação separada.
+A Application `infra` acompanha os YAMLs diretamente em `cluster/argocd`, incluindo seu próprio cadastro e o ApplicationSet. Depois do cadastro inicial, alterações nesses arquivos na `main` são sincronizadas automaticamente. Quem já aplicou o ApplicationSet pode cadastrar `infra` para que ela passe a gerenciar o mesmo recurso, sem excluí-lo ou recriá-lo.
+
+Novas pastas em `apps/` continuam sendo descobertas pelo ApplicationSet. Após perder o cluster, reinstalar K3s e Argo e reaplicar `root.yaml` recupera os cadastros pelo Git; credenciais privadas e dados persistentes precisam de recuperação separada. Restringir alterações em `cluster/argocd` aos responsáveis pelo cluster, pois essa pasta controla o Argo e suas regras de deploy.
 
 `prune: false` mantém desativada a exclusão automática de recursos. Remover uma pasta pode apagar seu cadastro no Argo, mas `preserveResourcesOnDeletion: true` preserva as cargas. Retirar um arquivo do Git não garante sua desinstalação do cluster.
 
