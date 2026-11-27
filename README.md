@@ -195,9 +195,9 @@ Para atualizar o jogo, faça backup do mundo, altere `VERSION` e `PAPER_BUILD` p
 
 ### Seed escolhida
 
-`SEED=8500081009970950196`: escolhida para um survival compacto com variedade de biomas e estruturas. A [fonte consultada para Java 26.3](https://mcseedmaps.com/seed/8500081009970950196-java-26-3) informa 45 biomas a até 1.000 blocos do spawn e estruturas como vila, mansão, cidade ancestral e stronghold nas proximidades. Não é garantia de todos os recursos ou estruturas das três dimensões; a seed foi pesquisada, não validada localmente no jogo.
+`SEED=2048005618087379093`: seed anterior do repositório, selecionada novamente para gerar um mundo zerado. A versão do jogo e a build do Paper continuam fixadas; a mudança é na seed e no nome da pasta do mundo.
 
-A seed só é usada ao gerar um mundo novo. O Deployment agora usa `LEVEL=brian-limitado` para gerar outro mundo no mesmo volume, preservando `/data/world` e as dimensões antigas. Jogadores começam no novo mundo, com progresso e construções separados. Os dados globais dos plugins continuam no mesmo volume. Mantenha o nome `brian-limitado` nos próximos deploys; apenas a primeira inicialização gera o novo mundo. Se já houver um mundo com esse nome, ele será reutilizado, e a seed não será substituída.
+A seed só é usada ao gerar um mundo novo. O Deployment usa `LEVEL=brian-cerejeiras-20261126` para gerar outro mundo no mesmo volume, preservando `/data/world`, `/data/brian-limitado` e suas dimensões. Jogadores começam no novo mundo, com progresso e construções separados. Os dados globais dos plugins continuam no mesmo volume. Mantenha o nome `brian-cerejeiras-20261126` nos próximos deploys; apenas a primeira inicialização gera o novo mundo. Se já houver um mundo com esse nome, ele será reutilizado, e a seed não será substituída.
 
 ### Borda do mundo
 
@@ -213,7 +213,7 @@ kubectl -n laboratorio logs -f deployment/minecraft
 
 Depois de aparecer `Done` e a execução dos comandos de inicialização, confirme no chat `/seed` e `/worldborder get`. O retorno esperado para a borda é 10000. Não é necessário executar outro `rollout restart` após a mudança no Deployment. No novo mundo, confira também `/datapack list enabled`.
 
-Para voltar ao mundo anterior, restaure `LEVEL=world` e aplique novamente; não apague nenhum PVC ou diretório. O novo mundo permanece no volume. O mesmo conjunto de plugins é compartilhado, então referências salvas por plugins (como homes e warps) podem precisar de revisão ao trocar de mundo.
+Para voltar ao mundo imediatamente anterior, restaure `LEVEL=brian-limitado` e `SEED=8500081009970950196` e aplique novamente. Para selecionar o mundo mais antigo, use `LEVEL=world`. Não apague nenhum PVC ou diretório. O novo mundo permanece no volume. O mesmo conjunto de plugins é compartilhado, então referências salvas por plugins (como homes e warps) podem precisar de revisão ao trocar de mundo.
 
 Referência: [execução automática de comandos RCON pela imagem](https://docker-minecraft-server.readthedocs.io/en/latest/configuration/auto-rcon-commands/).
 

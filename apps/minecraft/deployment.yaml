@@ -125,14 +125,13 @@ spec:
             # - name: SIMULATION_DISTANCE
             #   value: "6"
             # Seed usada para gerar um NOVO mundo; não recria um mundo existente.
-            # Seed com grande variedade de biomas e estruturas próximas (Java 26.3).
-            # Fonte: https://mcseedmaps.com/seed/8500081009970950196-java-26-3
+            # Seed anterior do repositório, usada para gerar um mundo zerado.
             - name: SEED
-              value: "8500081009970950196"
-            # Novo mundo: mantém o antigo /data/world e suas dimensões no volume.
+              value: "2048005618087379093"
+            # Pasta nova: preserva world e brian-limitado com suas dimensões.
             # Mantenha este nome nos próximos deploys para continuar o mesmo mundo.
             - name: LEVEL
-              value: "brian-limitado"
+              value: "brian-cerejeiras-20261126"
 
             # --- Datapacks: instalados só no servidor, sem download pelos jogadores ---
             # Timber, Graves e Fast Leaf Decay selecionados em datapacks.yaml.
