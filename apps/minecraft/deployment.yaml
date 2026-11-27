@@ -17,23 +17,6 @@ spec:
         app: minecraft
     spec:
       terminationGracePeriodSeconds: 120
-      # Copia a configuração gerenciada pelo Git para o volume gravável.
-      initContainers:
-        - name: configure-essentials
-          image: busybox:1.37.0
-          command:
-            - sh
-            - -ec
-            - |
-              mkdir -p /data/plugins/Essentials
-              cp /essentials-config/config.yml /data/plugins/Essentials/config.yml
-              chown 1000:1000 /data/plugins/Essentials /data/plugins/Essentials/config.yml
-          volumeMounts:
-            - name: data
-              mountPath: /data
-            - name: essentials-config
-              mountPath: /essentials-config
-              readOnly: true
       containers:
         - name: minecraft
           image: itzg/minecraft-server:latest
@@ -41,7 +24,7 @@ spec:
           env:
             # Guia: https://docker-minecraft-server.readthedocs.io/en/latest/configuration/server-properties/
             # Exemplos com # ficam desativados. Remova # de name E value para usar.
-            # Depois de editar: kubectl apply -f apps/minecraft/
+            # Depois da migração, publique as alterações pelo Git para o Argo aplicar.
 
             # --- Tipo de servidor e versão ---
             # Iniciar com TRUE aceita https://www.minecraft.net/en-us/eula
@@ -74,11 +57,6 @@ spec:
             # Mensagem exibida na lista de servidores.
             - name: MOTD
               value: "Os Brian"
-            # Ícone PNG incluído no ConfigMap server-icon.yaml, sem URL externa.
-            - name: ICON
-              value: "/config/server-icon/server-icon.png"
-            - name: OVERRIDE_ICON
-              value: "TRUE"
             # Quantidade máxima de jogadores conectados.
             - name: MAX_PLAYERS
               value: "9999"
@@ -133,20 +111,6 @@ spec:
             - name: LEVEL
               value: "brian-cerejeiras-20261126"
 
-            # --- Datapacks: instalados só no servidor, sem download pelos jogadores ---
-            # Timber, Graves e Fast Leaf Decay selecionados em datapacks.yaml.
-            # A imagem baixa os pacotes do Vanilla Tweaks antes de iniciar o jogo.
-            - name: VANILLATWEAKS_FILE
-              value: "/config/vanillatweaks/vanillatweaks.json"
-
-            # --- Plugins: apenas se TYPE for PAPER ou outro tipo compatível ---
-            # EssentialsX: build oficial de desenvolvimento fixada para 26.3.
-            # WorldEdit: versão estável 7.4.6 compatível com Paper 26.3.
-            # Configuração do EssentialsX gerenciada em essentials.yaml.
-            - name: PLUGINS
-              value: "https://ci.ender.zone/job/EssentialsX/1833/artifact/jars/EssentialsX-2.22.1-dev+28-f8724e2.jar,https://cdn.modrinth.com/data/1u6JkXh5/versions/YFnqiUlL/worldedit-bukkit-7.4.6.jar"
-            # Também é possível instalar arquivos .jar em /data/plugins.
-
             # --- Administração remota ---
             # RCON interno para aplicar a borda depois que o servidor iniciar.
             # Senha gerada pela imagem; a porta RCON não é publicada pelo Service.
@@ -170,12 +134,6 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
-            - name: datapack-config
-              mountPath: /config/vanillatweaks
-              readOnly: true
-            - name: server-icon
-              mountPath: /config/server-icon
-              readOnly: true
           startupProbe:
             tcpSocket:
               port: minecraft
@@ -189,12 +147,3 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: minecraft-data
-        - name: datapack-config
-          configMap:
-            name: minecraft-datapacks
-        - name: server-icon
-          configMap:
-            name: minecraft-server-icon
-        - name: essentials-config
-          configMap:
-            name: minecraft-essentials

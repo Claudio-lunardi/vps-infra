@@ -6,28 +6,29 @@ Servidor Minecraft Java com Paper no K3s, fixado na versão `26.3` e build Paper
 
 ```text
 namespaces/laboratorio.yaml
+cluster/argocd/applicationset.yaml
 apps/minecraft/deployment.yaml
 apps/minecraft/service.yaml
 apps/minecraft/storage.yaml
-apps/minecraft/datapacks.yaml
-apps/minecraft/essentials.yaml
-apps/minecraft/server-icon.yaml
-apps/minecraft/assets/server-icon.png
 ```
 
 - Deployment: executa um servidor, com heap Java inicial de 512 MB e máximo de 75% da memória disponível detectada pela JVM. Não há teto de CPU nem limite Kubernetes de memória para o container.
 - Service: publica TCP 25565 pelo ServiceLB incluído na instalação padrão do K3s.
 - Storage: solicita 10 GiB para o mundo e configurações em `/data`, usando a StorageClass `local-path` do K3s.
-- Datapacks: ConfigMap com a seleção do Vanilla Tweaks para Minecraft 26.3. A imagem instala Timber, Graves e Fast Leaf Decay no mundo ao iniciar, sem exigir instalação dos jogadores.
-- Ícone: PNG de 64x64 do Os Brian incluído no ConfigMap `minecraft-server-icon`. A imagem copia o arquivo para o servidor usando `ICON` e `OVERRIDE_ICON=TRUE`, sem baixar arte de sites externos.
 
-Cada pasta em `apps/` representa uma aplicação. O Kubernetes não acompanha a pasta ou o Git: `kubectl apply` lê os YAMLs e envia os recursos ao cluster. Depois de editar, aplique novamente. Remover um YAML do Git não exclui seu recurso do cluster.
+Cada pasta diretamente em `apps/` representa uma aplicação. O Kubernetes sozinho não acompanha o Git: no deploy manual, `kubectl apply` lê os YAMLs e envia os recursos ao cluster. Com o ApplicationSet ativado, o Argo CD descobre essas pastas e aplica suas alterações automaticamente após o merge na `main`.
 
-## Deploy automático pelo GitHub
+## Validação pelo GitHub
 
-O workflow `.github/workflows/deploy-minecraft.yaml` executa no GitHub e faz o deploy por SSH na VPS, sem runner instalado nela. A preparação manual do usuário, chave SSH, permissões Kubernetes e Secrets está em [docs/github-actions.md](docs/github-actions.md). O job só executa na `main` com a variável `ENABLE_DEPLOY=true`.
+O workflow `.github/workflows/deploy-minecraft.yaml` agora apenas valida os manifests, sem acessar a VPS. O deploy automático é feito pelo Argo CD. Os detalhes e a retirada do acesso antigo estão em [docs/github-actions.md](docs/github-actions.md).
 
-Depois da preparação, mudanças em `apps/minecraft/` enviadas à `main` aplicam os manifests e aguardam o rollout. O script `apps/minecraft/deploy.sh` inclui um hash dos YAMLs no Pod para recarregar também mudanças nos ConfigMaps, sem reiniciar ao reaplicar os mesmos arquivos. Atualizações interrompem brevemente o jogo e preservam o PVC existente. Os comandos manuais abaixo continuam disponíveis; a configuração SSH e o primeiro deploy pela pipeline ainda precisam ser validados na VPS.
+## Argo CD
+
+O ApplicationSet em `cluster/argocd/applicationset.yaml` descobre cada pasta de `apps/*` e gera seu cadastro com sincronização automática. O destino padrão é `laboratorio`. A ativação e a transição estão em [docs/argocd.md](docs/argocd.md).
+
+O Minecraft usa apenas Deployment, Service e PVC. Os ConfigMaps e a instalação de plugins, datapacks e ícone personalizado foram retirados desta configuração.
+
+O script `apps/minecraft/deploy.sh` permanece apenas como alternativa manual usando `kubectl apply -f`; não é usado pelo workflow nem deve concorrer com o Argo. Antes de ativar o ApplicationSet, desativar o deploy antigo no GitHub e aguardar qualquer execução terminar. A regra ainda não foi aplicada ao cluster.
 
 ## Requisitos
 
@@ -37,7 +38,7 @@ A imagem comunitária `itzg/minecraft-server` baixa e executa o Paper com `TYPE=
 
 ## Aplicar na VPS
 
-Se já estiver rodando vanilla, faça backup de todo o volume `/data` com o servidor parado antes da primeira troca para Paper. A mudança reinicia o servidor e o Paper pode reorganizar os diretórios das dimensões. Os YAMLs mantêm o mesmo PVC e a mesma seed; não exclua o volume nem o namespace. Depois da migração, teste farms, redstone e os três datapacks: este repositório foi validado localmente, mas a execução no jogo precisa ser verificada na VPS.
+Se já estiver rodando vanilla, faça backup de todo o volume `/data` com o servidor parado antes da primeira troca para Paper. A mudança reinicia o servidor e o Paper pode reorganizar os diretórios das dimensões. Os YAMLs mantêm o mesmo PVC e a mesma seed; não exclua o volume nem o namespace. Depois da migração, confira a saúde do servidor e o mundo: este repositório foi validado localmente, mas a execução no jogo precisa ser verificada na VPS.
 
 Atualize ou copie o repositório para a VPS por Git ou SFTP. Na sessão SSH como root, dentro de `vps-infra`:
 
@@ -73,7 +74,7 @@ Para aplicar também futuras aplicações em subpastas:
 
 ```bash
 kubectl apply -f namespaces/
-kubectl apply -R -f apps/
+kubectl apply -f apps/nome-do-projeto/
 ```
 
 ## Entrar no jogo
@@ -90,91 +91,11 @@ Não é necessário habilitar o UFW para o exemplo. O ServiceLB do K3s precisa e
 
 ## Configuração e atualizações
 
-### WorldEdit
-
-WorldEdit `7.4.6` estável foi adicionado à variável `PLUGINS` com URL de versão fixa. A publicação oficial no Modrinth declara suporte a Paper 26.3 e não lista dependências obrigatórias. O arquivo é a edição Bukkit/Paper, não o mod Fabric/Forge. Os jogadores não precisam instalar nada.
-
-Os operadores do servidor têm acesso ao WorldEdit por padrão. Não liberamos permissões de edição para jogadores comuns. Para conferir após aplicar e reiniciar, use `/worldedit version` no jogo. `//wand` fornece a ferramenta de seleção: clique esquerdo marca o primeiro canto, e direito marca o segundo. `//set stone` preenche a seleção com pedra; `//undo` desfaz sua última edição. Comece com seleções pequenas, pois edições grandes podem consumir muitos recursos, e mantenha backup das construções.
-
-A configuração padrão do plugin é criada no volume em `/data/plugins/WorldEdit`; não adicionamos outro initContainer. Para atualizar, altere a URL na lista `PLUGINS` para outra versão compatível e aplique o Deployment.
-
-Referências: [arquivo oficial 7.4.6](https://modrinth.com/plugin/worldedit/version/YFnqiUlL), [guia inicial](https://worldedit.enginehub.org/en/latest/quickstart/) e [permissões](https://worldedit.enginehub.org/en/latest/permissions/).
-
-### Pedidos de teleporte (EssentialsX)
-
-O servidor baixa a build oficial fixada `2.22.1-dev+28-f8724e2` (Jenkins 1833). O canal de desenvolvimento inclui suporte a Minecraft 26.3; a versão estável 2.22.0 declara suporte até 26.1.2. Não usamos um link móvel de última build. SHA-256 do JAR verificado: `5b8a1feb7c40a45d81e516bd077a7272d833c76cf829098743211999abd95929`.
-
-Todos os jogadores recebem apenas estas permissões do EssentialsX pela lista `player-commands`; não precisam de OP, mod ou resource pack:
-
-| Comando | Ação |
-| --- | --- |
-| `/tpa NomeDoJogador` | Pede para ir até o jogador |
-| `/tpaccept` | Aceita o pedido recebido |
-| `/tpdeny` | Recusa o pedido recebido |
-| `/tpacancel` | Cancela seu pedido pendente |
-
-Pedidos expiram em 60 segundos. O teleporte tem espera de 3 segundos (mover-se ou sofrer ataque pode cancelá-lo) e intervalo de 10 segundos entre teleportes. Não habilitamos aceite automático. Operadores continuam com as permissões administrativas do plugin.
-
-`essentials.yaml` contém a configuração em um ConfigMap. Um initContainer copia esse arquivo para `/data/plugins/Essentials/config.yml` antes de cada inicialização. Esse arquivo é gerenciado pelo repositório: alterações manuais nele na VPS serão substituídas ao recriar o Pod. O initContainer não remove os outros arquivos de dados do plugin. Para alterar a configuração, edite o ConfigMap, aplique a pasta e reinicie o Deployment. Se futuramente instalar um gerenciador de permissões, como LuckPerms, migre as permissões para ele.
-
-```bash
-kubectl apply -f apps/minecraft/
-kubectl -n laboratorio rollout status deployment/minecraft --timeout=900s
-kubectl -n laboratorio logs -f deployment/minecraft
-```
-
-Após carregar, confira `/plugins` como administrador e teste `/tpa` com um jogador sem OP, incluindo aceitar e recusar. Se alterar apenas o ConfigMap depois da primeira aplicação, execute `kubectl -n laboratorio rollout restart deployment/minecraft` para recopiá-lo. A instalação foi preparada e validada localmente; o funcionamento no jogo deve ser confirmado na VPS.
-
-Referências: [EssentialsX e versões suportadas](https://github.com/EssentialsX/Essentials), [build oficial 1833](https://ci.ender.zone/job/EssentialsX/1833/), [configuração oficial](https://github.com/EssentialsX/Essentials/blob/2.x/Essentials/src/main/resources/config.yml).
-
-### Ícone na lista de servidores
-
-A arte tem um creeper, uma espada de diamante e as iniciais OB. Foi gerada com a ferramenta de imagens integrada e exportada em 64x64 pixels. O prompt está em `apps/minecraft/assets/icon-prompt.txt`.
-
-O arquivo `server-icon.yaml` contém os bytes do PNG e é aplicado junto dos outros YAMLs. O Kubernetes monta o arquivo em `/config/server-icon/server-icon.png`; a imagem o instala como `/data/server-icon.png`. A primeira aplicação da mudança no Deployment reinicia o servidor para mostrar o ícone.
-
-Para trocar a arte, substitua `apps/minecraft/assets/server-icon.png` por outro PNG de 64x64 e execute no PowerShell do Windows, na raiz do repositório:
-
-```powershell
-./apps/minecraft/update-icon.ps1
-```
-
-Esse comando só atualiza o ConfigMap local. Envie o YAML atualizado à VPS, aplique a pasta e reinicie o servidor para copiar a nova imagem:
-
-```bash
-kubectl apply -f apps/minecraft/
-kubectl -n laboratorio rollout restart deployment/minecraft
-```
-
-Não basta substituir o PNG no Git: regenere também `server-icon.yaml`. Depois, atualize a lista de servidores no jogo. Referência: [ícone do servidor na imagem Minecraft](https://docker-minecraft-server.readthedocs.io/en/latest/configuration/server-properties/#server-icon).
-
-### Melhorias instaladas só no servidor
-
-A seleção em `apps/minecraft/datapacks.yaml` usa o catálogo oficial do Vanilla Tweaks para 26.3:
-
-- **Timber:** corta a árvore com um machado no survival. `/trigger TimberToggle` alterna o recurso para o jogador; `/function timber:help` mostra ajuda.
-- **Graves:** guarda os itens em uma sepultura ao morrer. Clique com o botão direito ou esquerdo na sepultura para recuperar. Administradores podem configurar com `/function graves:config`.
-- **Fast Leaf Decay:** acelera a decomposição das folhas depois de cortar árvores no survival.
-
-São datapacks, não plugins de Paper nem mods de cliente. Eles foram mantidos na configuração do Paper e os jogadores usam Minecraft Java normal. A imagem lê o JSON montado pelo ConfigMap via `VANILLATWEAKS_FILE`, baixa os pacotes do site oficial e instala em `/data/<mundo>/datapacks`. Também funciona em um mundo já existente, sem trocar a seed ou apagar o mapa. Confira o carregamento e o comportamento após a migração.
-
-Na primeira aplicação, a alteração do Deployment já reinicia o servidor. Ao mudar somente o ConfigMap posteriormente, aplique e reinicie explicitamente:
-
-```bash
-kubectl apply -f apps/minecraft/
-kubectl -n laboratorio rollout restart deployment/minecraft
-kubectl -n laboratorio rollout status deployment/minecraft --timeout=900s
-```
-
-Depois da inicialização, um administrador pode conferir no chat com `/datapack list enabled`. A instalação usa a versão dos pacotes disponibilizada pelo Vanilla Tweaks para 26.3 e depende de acesso ao site na inicialização; os arquivos dos pacotes não estão fixados no Git. Não habilitamos remoção geral dos datapacks existentes. Remover um nome do JSON não garante sua desinstalação do mundo: use o procedimento do pacote, especialmente para Graves se ainda houver itens em sepulturas.
-
-Referências: [catálogo 26.3](https://vanillatweaks.net/assets/resources/json/26.3/dpcategories.json) e [integração da imagem com Vanilla Tweaks](https://docker-minecraft-server.readthedocs.io/en/latest/misc/world-data/#vanillatweaks).
-
 ### Variáveis e recursos
 
 Edite as variáveis em `apps/minecraft/deployment.yaml` e aplique a pasta novamente.
 
-O bloco `env` contém comentários com opções comuns: tipo de servidor, modo de jogo, dificuldade, PvP, whitelist, administradores, mundo e plugins. As opções comentadas são exemplos, não configurações ativas nem uma lista completa. Para ativar uma delas, remova o `#` das linhas `- name` e `value`, ajuste o valor e aplique novamente. Confira a compatibilidade com sua versão na documentação da imagem. Comentar uma variável já aplicada não necessariamente desfaz seu efeito: algumas configurações ficam salvas em `/data`.
+O bloco `env` contém comentários com opções comuns: tipo de servidor, modo de jogo, dificuldade, PvP, whitelist, administradores, mundo e permissões. As opções comentadas são exemplos, não configurações ativas nem uma lista completa. Para ativar uma delas, remova o `#` das linhas `- name` e `value`, ajuste o valor e aplique novamente. Confira a compatibilidade com sua versão na documentação da imagem. Comentar uma variável já aplicada não necessariamente desfaz seu efeito: algumas configurações ficam salvas em `/data`.
 
 `INIT_MEMORY=512M` inicia o heap pequeno, e `MAX_MEMORY=75%` permite crescer conforme a demanda até esse percentual da memória detectada pela JVM. Não há reserva antecipada do máximo. Sem limite de memória no container, normalmente a JVM detecta a RAM do nó, considerando eventuais limites de cgroup do ambiente. O processo usa memória adicional fora do heap; 75% não é um limite para a memória total do container nem garante que os outros 25% fiquem livres para o sistema.
 
@@ -211,9 +132,9 @@ kubectl -n laboratorio rollout status deployment/minecraft --timeout=900s
 kubectl -n laboratorio logs -f deployment/minecraft
 ```
 
-Depois de aparecer `Done` e a execução dos comandos de inicialização, confirme no chat `/seed` e `/worldborder get`. O retorno esperado para a borda é 10000. Não é necessário executar outro `rollout restart` após a mudança no Deployment. No novo mundo, confira também `/datapack list enabled`.
+Depois de aparecer `Done`, confira a seed e a borda do mundo no jogo.
 
-Para voltar ao mundo imediatamente anterior, restaure `LEVEL=brian-limitado` e `SEED=8500081009970950196` e aplique novamente. Para selecionar o mundo mais antigo, use `LEVEL=world`. Não apague nenhum PVC ou diretório. O novo mundo permanece no volume. O mesmo conjunto de plugins é compartilhado, então referências salvas por plugins (como homes e warps) podem precisar de revisão ao trocar de mundo.
+Para voltar ao mundo imediatamente anterior, restaure `LEVEL=brian-limitado` e `SEED=8500081009970950196` e aplique novamente. Para selecionar o mundo mais antigo, use `LEVEL=world`. Não apague nenhum PVC ou diretório. O novo mundo permanece no volume. Arquivos e plugins já existentes no volume não são removidos por esta alteração de manifests.
 
 Referência: [execução automática de comandos RCON pela imagem](https://docker-minecraft-server.readthedocs.io/en/latest/configuration/auto-rcon-commands/).
 

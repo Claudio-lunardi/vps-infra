@@ -1,4 +1,0 @@
-Generated with the built-in image_gen tool, then exported as a 64x64 PNG for Minecraft.
-
-Prompt:
-Use case: logo-brand. Create one square Minecraft Java multiplayer server icon for a friends server named Os Brian. Designed to be recognizable after downscaling to 64x64 pixels: bold crisp pixel art, simple chunky silhouettes, dark charcoal square background, central bright emerald green creeper face with a small diagonal turquoise diamond sword behind it. Large bold pixel initials OB integrated along the bottom, no other text. High contrast, restrained details, perfectly square full bleed composition with safe margins. Flat pixel art, no mockup, no surrounding frame, no watermark. Opaque background.
