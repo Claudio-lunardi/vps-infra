@@ -1,3 +1,7 @@
+# Exemplo oficial (Git Generator: Directories):
+# https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators-Git/#git-generator-directories
+# Referência dos campos:
+# https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/applicationset-specification/
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
