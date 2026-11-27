@@ -1,3 +1,5 @@
+# Mantém os YAMLs de cluster/argocd atualizados no Kubernetes.
+# Este é o único cadastro necessário na configuração inicial.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

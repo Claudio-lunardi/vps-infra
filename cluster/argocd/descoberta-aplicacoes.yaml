@@ -1,3 +1,5 @@
+# Descobre os projetos em apps/* e define o padrão de deploy de cada um.
+# A Application infra mantém esta regra atualizada pelo Git.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:

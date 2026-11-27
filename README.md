@@ -5,13 +5,16 @@ Manifests das aplicações do laboratório K3s, publicados pelo Argo CD.
 ## Organização
 
 ```text
-cluster/argocd/applicationset.yaml
-cluster/argocd/root.yaml
+cluster/argocd/descoberta-aplicacoes.yaml
+cluster/argocd/configuracao-argo.yaml
 apps/minecraft/deployment.yaml
 apps/minecraft/service.yaml
 apps/minecraft/storage.yaml
 ```
 
+
+- `configuracao-argo.yaml`: mantém a configuração do Argo atualizada pelo Git.
+- `descoberta-aplicacoes.yaml`: encontra as pastas em `apps/*` e define o padrão de deploy das aplicações.
 Cada pasta diretamente em `apps/` representa uma aplicação. O ApplicationSet descobre `apps/*` na branch `main`, gera as Applications e habilita a sincronização automática. Não há pipeline nem script de deploy neste repositório.
 
 ## Publicar uma aplicação
@@ -29,13 +32,13 @@ O merge na `main` libera o deploy. A pipeline de um futuro projeto pode testar, 
 Com Argo CD instalado em `argocd`, cadastrar a Application principal uma vez:
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/Claudio-lunardi/vps-infra/main/cluster/argocd/root.yaml
+kubectl apply -f https://raw.githubusercontent.com/Claudio-lunardi/vps-infra/main/cluster/argocd/configuracao-argo.yaml
 kubectl -n argocd get applicationset,applications
 ```
 
 A Application `infra` acompanha os YAMLs diretamente em `cluster/argocd`, incluindo seu próprio cadastro e o ApplicationSet. Depois do cadastro inicial, alterações nesses arquivos na `main` são sincronizadas automaticamente. Quem já aplicou o ApplicationSet pode cadastrar `infra` para que ela passe a gerenciar o mesmo recurso, sem excluí-lo ou recriá-lo.
 
-Novas pastas em `apps/` continuam sendo descobertas pelo ApplicationSet. Após perder o cluster, reinstalar K3s e Argo e reaplicar `root.yaml` recupera os cadastros pelo Git; credenciais privadas e dados persistentes precisam de recuperação separada. Restringir alterações em `cluster/argocd` aos responsáveis pelo cluster, pois essa pasta controla o Argo e suas regras de deploy.
+Novas pastas em `apps/` continuam sendo descobertas pelo ApplicationSet. Após perder o cluster, reinstalar K3s e Argo e reaplicar `configuracao-argo.yaml` recupera os cadastros pelo Git; credenciais privadas e dados persistentes precisam de recuperação separada. Restringir alterações em `cluster/argocd` aos responsáveis pelo cluster, pois essa pasta controla o Argo e suas regras de deploy.
 
 `prune: false` mantém desativada a exclusão automática de recursos. Remover uma pasta pode apagar seu cadastro no Argo, mas `preserveResourcesOnDeletion: true` preserva as cargas. Retirar um arquivo do Git não garante sua desinstalação do cluster.
 
