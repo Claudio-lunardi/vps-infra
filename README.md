@@ -6,13 +6,13 @@ Manifests das aplicações do laboratório K3s, publicados pelo Argo CD.
 
 ```text
 cluster/argocd/application.yaml
+cluster/argocd/applicationset.yaml
 apps/minecraft/deployment.yaml
 apps/minecraft/service.yaml
 apps/minecraft/storage.yaml
 ```
 
-
-O arquivo `application.yaml` reúne a Application `infra` e o ApplicationSet `apps`, separados por `---`.
+Cada tipo de recurso tem seu próprio arquivo: `application.yaml` define a Application principal `infra`; `applicationset.yaml` define o ApplicationSet `apps`.
 
 Cada pasta diretamente em `apps/` representa uma aplicação. O ApplicationSet descobre `apps/*` na branch `main`, gera as Applications e habilita a sincronização automática. Não há pipeline nem script de deploy neste repositório.
 

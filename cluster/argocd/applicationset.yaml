@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: apps
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+  generators:
+    - git:
+        repoURL: https://github.com/Claudio-lunardi/vps-infra.git
+        revision: main
+        requeueAfterSeconds: 60
+        directories:
+          - path: apps/*
+  # Excluir o cadastro não deve apagar as cargas nem seus volumes.
+  syncPolicy:
+    preserveResourcesOnDeletion: true
+  template:
+    metadata:
+      name: '{{.path.basenameNormalized}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/Claudio-lunardi/vps-infra.git
+        targetRevision: main
+        path: '{{.path.path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: laboratorio
+      syncPolicy:
+        automated:
+          prune: false
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
