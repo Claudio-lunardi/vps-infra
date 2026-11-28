@@ -17,7 +17,7 @@ spec:
         - name: ghcr-workspace
       containers:
         - name: workspace
-          image: ghcr.io/claudio-lunardi/workspace@sha256:4879f9f7e1ce3daeb08ab110c7df647f58c16c7b3b92c1db5f6bee7dfb8cb057
+          image: ghcr.io/claudio-lunardi/workspace@sha256:4358341918704e2462b759edce04668d128fe7f8e8ce42180625cd20ff7ff63a
           ports:
             - name: http
               containerPort: 8080
